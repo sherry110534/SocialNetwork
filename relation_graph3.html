@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<title>Relationship Network</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link href="https://fonts.googleapis.com/earlyaccess/cwtexfangsong.css" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css?family=Crimson+Text" rel="stylesheet">
+</head>
+<style>
+	body {
+		font-family: 'cwTeXFangSong', 'Crimson Text',sans-serif;
+		font-size: 20px;
+	}
+	.info {
+		position: absolute;
+		top: 30px;
+		left: 10px;
+	}
+	.links line {
+		stroke: rgba(153, 153, 153, 0.418);
+		stroke-opacity: 0.6;
+	}
+	.linetext {
+		fill: rgb(130, 130, 219);
+		fill-opacity:0.0;
+	}
+	.nodes circle {
+		stroke: #fff;
+		stroke-width: 1.5px;
+	}
+	text {
+		font-family: 'cwTeXFangSong', sans-serif;
+		font-size: 15px;
+	}
+</style>
+<body>
+	<div class="info">
+		<div>
+			<h2><a href="https://colab.research.google.com/drive/1c5ycwivcBZY5dLIwAcXxHO5zcq_cHQ8f" target="_blank" style="color:black;">天龍八部 人物關係網路</a></h2>
+			<p>&nbsp&nbsp&nbsp&nbspNodes:&nbsp248,&nbsp&nbspEdges:&nbsp2994</p>
+		</div>
+		<div> 
+			<li>Average Degree： 25.767857142857142</li>
+			<li>Average Clustering Coefficient： 0.7766203052788543</li>
+			<li>Diameter： 2</li>
+			<li>Degree Distribution：</li>
+			<img src="./img/Degree_Distribution.png" >
+		</div>
+	</div>
+	<script src="https://d3js.org/d3.v4.min.js"></script>
+	<script>
+		//get window size
+		var width = window.innerWidth;
+		var height = window.innerHeight;
+		//set color list
+		var color = d3.scaleOrdinal(d3.schemeCategory20);
+		//add a SVG in window
+		var svg = d3.select("body")
+								.append("svg")
+								.attr("width", width)
+								.attr("height", height)
+		//force simulation
+		var simulation = d3.forceSimulation().alphaDecay(0.1)
+										.force("link", d3.forceLink().id(function(d) { return d.id; }))
+										.force("charge", d3.forceManyBody())
+										.force('collide', d3.forceCollide().radius(() => 26))
+										.force("center", d3.forceCenter(width / 3 * 2 , height / 2));
+		// read data from json
+		d3.json("relationD3.json", function(error, graph){
+			if(error){
+				return console.log(error);
+			}
+			//set links
+			var link = svg.append("g")
+								.attr("class", "links")
+								.selectAll("line")
+								.data(graph.links).enter().append("line")
+      					.attr("stroke-width", function(d) {	return Math.log2(d.value)+1.5; });
+			
+			var link_text = svg.selectAll(".linetext")  
+											.data(graph.links)  
+											.enter()  
+											.append("text")  
+											.style("cursor", "default")
+											.attr("class", "linetext")  
+											.text(function(d){	return d.value; });  
+			//set nodes
+			var node = svg.append("g")
+									.attr("class", "nodes")
+									.selectAll("g")
+									.data(graph.nodes)
+									.enter().append("g")
+			var circles = node.append("circle")
+										.attr("r", function(d){ return d.weight/10 + 5 })
+										.attr("fill", function(d, i){	return color(i)})
+										.style("cursor", "hand")
+										.on("mousedown", function(d,i){ 
+											//show text on the edge 
+											link_text.style("fill-opacity",function(edge){
+												if( edge.source === d || edge.target === d ){
+													return 1.0;
+												}
+											});
+										})  
+										.on("mouseup", function(d,i){  
+											//hide text on the edge
+											link_text.style("fill-opacity",function(edge){
+												if( edge.source === d || edge.target === d ){
+													return 0.0;
+												}
+											}); 
+										})
+										.call(d3.drag()
+											.on("start", dragstarted)
+											.on("drag", dragged)
+											.on("end", dragended));	
+			var lables = node.append("text")
+									.text(function(d) {
+										return d.id;
+									})
+									.attr('x', -3)
+									.attr('y', 3)
+									.style("cursor", "hand");
+			node.append("title")
+					.text(function(d) { return d.id; });
+			simulation.nodes(graph.nodes).on("tick", ticked);
+			simulation.force("link")
+								.links(graph.links);
+			//force function
+			function ticked() {
+				link.attr("x1", function(d) { return d.source.x; })
+						.attr("y1", function(d) { return d.source.y; })
+						.attr("x2", function(d) { return d.target.x; })
+						.attr("y2", function(d) { return d.target.y; });
+				link_text.attr("x",function(d){ return (d.source.x + d.target.x) / 2 ; }) 
+								 .attr("y",function(d){ return (d.source.y + d.target.y) / 2 ; });
+				node.attr("transform", function(d) {
+							return "translate(" + d.x + "," + d.y + ")";
+						})
+			}
+		});
+		function dragstarted(d) {
+			if (!d3.event.active) 
+				simulation.alphaTarget(0.3).restart();
+			d.fx = d.x;
+			d.fy = d.y;
+		}
+
+		function dragged(d) {
+			d.fx = d3.event.x;
+			d.fy = d3.event.y;
+		}
+
+		function dragended(d) {
+			if (!d3.event.active) 
+				simulation.alphaTarget(0);
+			d.fx = d3.event.x;
+			d.fy = d3.event.y;
+		}
+	</script>
+</body>
+</html>
